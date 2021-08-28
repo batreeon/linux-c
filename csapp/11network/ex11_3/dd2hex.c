@@ -8,5 +8,5 @@ int main(int argc,char **argv) {
     }
     struct sockaddr_in addr;
     inet_pton(AF_INET,argv[1],&addr.sin_addr);
-    printf("%x\n",addr.sin_addr.s_addr);
+    printf("0x%x\n",ntohl(addr.sin_addr.s_addr));
 }
