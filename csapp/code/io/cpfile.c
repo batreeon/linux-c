@@ -1,5 +1,5 @@
 /* $begin cpfile */
-#include "csapp.h"
+#include "../include/csapp.h"
 
 int main(int argc, char **argv) 
 {
@@ -9,7 +9,7 @@ int main(int argc, char **argv)
 
     Rio_readinitb(&rio, STDIN_FILENO);
     while((n = Rio_readlineb(&rio, buf, MAXLINE)) != 0) 
-	Rio_writen(STDOUT_FILENO, buf, n);
+	    Rio_writen(STDOUT_FILENO, buf, n);
     /* $end cpfile */
     exit(0);
     /* $begin cpfile */
