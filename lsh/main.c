@@ -26,7 +26,7 @@ char * lsh_read_line(void)
     int bufsize = LSH_RL_BUFSIZE;
     // 记录即将往缓冲区里写入的位置
     int position = 0;
-    char *buffer = malloc(size(char) * bufsize);
+    char *buffer = malloc(sizeof(char) * bufsize);
     // 下一个要读入的字符，使用int，因为EOF是int类型
     int c;
 
