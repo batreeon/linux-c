@@ -88,24 +88,6 @@ int lsh_launch(char **args)
     return 1;
 }
 
-
-// 执行shell内建命令或者启动程序
-int lsh_execute(char **args)
-{
-    if (args[0] == NULL) {
-        // 空命令
-        return 1;
-    }
-
-    for (int i = 0; i < lsh_num_builtins(); i++) {
-        if(strcmp(args[0], builtin_str[i]) == 0) {
-            return (*builtin_func[i])(args);
-        }
-    }
-
-    return lsh_launch(args);
-}
-
 // read a line of input from stdin
 // return the line from stdin
 char * lsh_read_line(void)
@@ -166,7 +148,7 @@ char * lsh_read_line(void)
 
 // 解析读取行
 #define LSH_TOK_BUFSIZE 64
-#define LSH_TOK_DELIM "\t\r\n\a"
+#define LSH_TOK_DELIM " \t\r\n\a"
 char **lsh_split_line(char *line)
 {
     int bufsize = LSH_TOK_BUFSIZE;
@@ -180,15 +162,18 @@ char **lsh_split_line(char *line)
     }
 
     token = strtok(line, LSH_TOK_DELIM);
-    while (!token) {
+    while (token != NULL) {
+        // printf("token: %s ", token);
         tokens[position] = token;
         position++;
 
         if (position >= bufsize) {
             bufsize += LSH_TOK_BUFSIZE;
+            char **tokens_backup = tokens;
             tokens = realloc(tokens, bufsize * sizeof(char*));
 
             if (!tokens) {
+                free(tokens_backup);
                 fprintf(stderr, "lsh: allocation error\n");
                 exit(EXIT_FAILURE);
             }
@@ -196,10 +181,28 @@ char **lsh_split_line(char *line)
 
         token = strtok(NULL, LSH_TOK_DELIM);
     }
+    // printf("\n");
 
     // 作为结束的标记
     tokens[position] = NULL;
     return tokens;
+}
+
+// 执行shell内建命令或者启动程序
+int lsh_execute(char **args)
+{
+    if (args[0] == NULL) {
+        // 空命令
+        return 1;
+    }
+
+    for (int i = 0; i < lsh_num_builtins(); i++) {
+        if(strcmp(args[0], builtin_str[i]) == 0) {
+            return (*builtin_func[i])(args);
+        }
+    }
+
+    return lsh_launch(args);
 }
 
 // loop getting input and executing it.
@@ -212,7 +215,13 @@ void lsh_loop(void)
     do {
         printf("> ");
         line = lsh_read_line();
+        // printf("input line: %s\n", line);
         args = lsh_split_line(line);
+        // int pos = 0;
+        // for(; args[pos] != NULL; pos++) {
+        //     printf("args[%d]: %s ", pos, args[pos]);
+        // }
+        // printf("\n");
         status = lsh_execute(args);
 
         free(line);
