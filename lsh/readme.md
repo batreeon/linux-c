@@ -1,1 +1,1 @@
-copy from [lsh](https://github.com/brenns10/lsh)
+a simple shell write in c, copy from [lsh](https://github.com/brenns10/lsh)
