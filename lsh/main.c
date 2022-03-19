@@ -9,17 +9,21 @@
 int lsh_cd(char **args);
 int lsh_help(char **args);
 int lsh_exit(char **args);
+int lsh_pwd(char **args);
 
 // 内建命令列表
 char *builtin_str[] = {
     "cd",
+    "pwd",
     "help",
     "exit"
 };
 
 // 内建命令对应的函数列表
+// builtin_func是一个数组指针，数组元素是指针，数组元素指向函数，函数参数是字符串，函数返回int
 int (*builtin_func[]) (char **) = {
     &lsh_cd,
+    &lsh_pwd,
     &lsh_help,
     &lsh_exit,
 };
@@ -41,6 +45,21 @@ int lsh_cd(char **args)
             perror("lsh");
         }
     }
+    return 1;
+}
+
+int lsh_pwd(char **args) {
+    if (args[1] != NULL) {
+        fprintf(stderr, "lsh: too many arguments\n");
+    }else{
+        char *pwd = getcwd(NULL, 0);
+        if (pwd == NULL) {
+            perror("lsh");
+        }else{
+            puts(pwd);
+        }
+    }
+    
     return 1;
 }
 
@@ -148,11 +167,13 @@ char * lsh_read_line(void)
 
 // 解析读取行
 #define LSH_TOK_BUFSIZE 64
+// 分隔符
 #define LSH_TOK_DELIM " \t\r\n\a"
 char **lsh_split_line(char *line)
 {
     int bufsize = LSH_TOK_BUFSIZE;
     int position = 0;
+    // 字符串数组
     char **tokens = malloc(bufsize * sizeof(char*));
     char *token;
 
@@ -161,6 +182,7 @@ char **lsh_split_line(char *line)
         exit(EXIT_FAILURE);
     }
 
+    // 分割字符串
     token = strtok(line, LSH_TOK_DELIM);
     while (token != NULL) {
         // printf("token: %s ", token);
@@ -169,6 +191,7 @@ char **lsh_split_line(char *line)
 
         if (position >= bufsize) {
             bufsize += LSH_TOK_BUFSIZE;
+            // 为什么要这样？？因为元素是字符串（字符数组）？？
             char **tokens_backup = tokens;
             tokens = realloc(tokens, bufsize * sizeof(char*));
 
@@ -179,6 +202,7 @@ char **lsh_split_line(char *line)
             }
         }
 
+        // 下一个字符串
         token = strtok(NULL, LSH_TOK_DELIM);
     }
     // printf("\n");
@@ -196,13 +220,16 @@ int lsh_execute(char **args)
         return 1;
     }
 
+    // 内建命令
     for (int i = 0; i < lsh_num_builtins(); i++) {
         if(strcmp(args[0], builtin_str[i]) == 0) {
             return (*builtin_func[i])(args);
         }
     }
 
-    return lsh_launch(args);
+    // return lsh_launch(args);
+    printf("lsh: %s %s\n", "command not found:", args[0]);
+    return 1;
 }
 
 // loop getting input and executing it.
@@ -213,9 +240,13 @@ void lsh_loop(void)
     int status;
 
     do {
-        printf("> ");
+        // 获得当前路径
+        char *pwd = getcwd(NULL, 0);
+        printf("%s> ", pwd);
+        // 读取一行
         line = lsh_read_line();
         // printf("input line: %s\n", line);
+        // 解析行输入，获得分割后的字符串数组
         args = lsh_split_line(line);
         // int pos = 0;
         // for(; args[pos] != NULL; pos++) {
