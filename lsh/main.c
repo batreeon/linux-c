@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <pwd.h>
 
 // 内建命令声明
 int lsh_cd(char **args);
@@ -35,14 +36,47 @@ int lsh_num_builtins()
 }
 
 // cd 命令
+// cd ~
+// cd a b
+// cd ~ a
 // 返回1,继续executing
 int lsh_cd(char **args)
 {
-    if (args[1] == NULL) {
-        fprintf(stderr, "lsh: expected argument to \"cd\"\n");
-    } else {
-        if (chdir(args[1]) != 0) {
+    if (!args[1]) {
+        fprintf(stderr, "lsh : expected argument to \"cd\"\n");
+    } else if (args[3]) {
+        fprintf(stderr, "cd: too many arguments\n");
+    }else if (args[2]) {
+        char *target = getcwd(NULL, 0);
+        if (target == NULL) {
             perror("lsh");
+        }
+
+        if (strcmp(args[1], "~") == 0) {
+            char *home = getenv("HOME");
+            args[1] = home;
+        }
+
+        char *pos = strstr(target, args[1]);
+        if (pos) {
+            size_t lenArgs1 = strlen(args[1]);
+            size_t lenArgs2 = strlen(args[2]);
+            strcpy(pos+lenArgs2, pos+lenArgs1);
+            // args[2]末尾有 '\n'
+            strncpy(pos, args[2], lenArgs2);
+            // printf("%s\n", target);
+            if (chdir(target) != 0) {
+                fprintf(stderr, "cd: no such file or directory: %s\n", target);
+            }
+        }else{
+            fprintf(stderr, "cd: string not in pwd: %s\n", args[1]);
+        }
+    }else{
+        if (strcmp(args[1], "~") == 0) {
+            args[1] = getenv("HOME");
+        }
+        if (chdir(args[1]) != 0) {
+            fprintf(stderr, "cd: no such file or directory: %s\n", args[1]);
         }
     }
     return 1;
@@ -50,7 +84,7 @@ int lsh_cd(char **args)
 
 int lsh_pwd(char **args) {
     if (args[1] != NULL) {
-        fprintf(stderr, "lsh: too many arguments\n");
+        fprintf(stderr, "pwd: too many arguments\n");
     }else{
         char *pwd = getcwd(NULL, 0);
         if (pwd == NULL) {
@@ -175,6 +209,9 @@ char **lsh_split_line(char *line)
     int position = 0;
     // 字符串数组
     char **tokens = malloc(bufsize * sizeof(char*));
+    // malloc不会对分配的空间进行初始化，我们后面会通过第四个参数是否为空，
+    // 来判断cd 命令参数是否过多，因此memset将所有元素初始化为0
+    memset(tokens, 0, bufsize * sizeof(char*));
     char *token;
 
     if (!tokens) {
@@ -232,6 +269,39 @@ int lsh_execute(char **args)
     return 1;
 }
 
+// 命令行提示符
+void cliPrompt(char *hostname) {
+    // 获取用户名
+    struct passwd *password = getpwuid(getuid());
+    char *username = password->pw_name;
+
+    // 获取主机名
+    if (gethostname(hostname, 512) == -1) {
+        perror("gethostname");
+    }
+
+    // 获取用户主目录
+    char *home = getenv("HOME");
+    size_t homePathLen;
+    if (!home) {
+        // 
+        printf("connot find the HOME environment variable\n");
+    }else{
+        homePathLen = strlen(home);
+    }
+
+    // 获得当前路径
+    char *pwd = getcwd(NULL, 0);
+    // 查看是否在主目录下,若是，将home替换为~
+    if (strncmp(pwd, home, homePathLen) == 0) {
+        strcpy(pwd+1, pwd+homePathLen);
+        pwd[0] = '~';
+    }
+
+    // 打印命令行提示符
+    printf("[%s@%s] %s> ", username, hostname, pwd);
+}
+
 // loop getting input and executing it.
 void lsh_loop(void)
 {
@@ -239,10 +309,15 @@ void lsh_loop(void)
     char **args;
     int status;
 
+    char *hostname = malloc(512 * sizeof(char));
+    if (!hostname) {
+        fprintf(stderr, "lsh: allocation error\n");
+        exit(EXIT_FAILURE);
+    }
+
     do {
-        // 获得当前路径
-        char *pwd = getcwd(NULL, 0);
-        printf("%s> ", pwd);
+        cliPrompt(hostname);
+
         // 读取一行
         line = lsh_read_line();
         // printf("input line: %s\n", line);
@@ -258,6 +333,8 @@ void lsh_loop(void)
         free(line);
         free(args);
     } while (status);
+
+    free(hostname);
 }
 
 int main(int argc, char **argv)
